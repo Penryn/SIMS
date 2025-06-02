@@ -79,11 +79,11 @@
     </dependencies>
 
     <build>
-        <plugins>
-            <plugin>
+        <plugins>            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <mainClass>com.graduate.management.SimsApplication</mainClass>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
