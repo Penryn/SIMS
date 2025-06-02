@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * 登录失败处理器
@@ -41,51 +42,55 @@ public class LoginAttemptService {
         }
         
         try {
-            User user = userService.findByUsername(username);
+            Optional<User> userOptional = userService.findByUsername(username);
             
-            // 更新登录失败次数
-            int failures = user.getLoginAttempts() + 1;
-            user.setLoginAttempts(failures);
-            
-            // 如果失败次数达到上限，锁定账号
-            if (failures >= maxAttempts) {
-                user.setAccountNonLocked(false);
-                user.setLockedTime(LocalDateTime.now());
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
                 
-                // 记录账号锁定日志
+                // 更新登录失败次数
+                int failures = user.getLoginAttempts() + 1;
+                user.setLoginAttempts(failures);
+                
+                // 如果失败次数达到上限，锁定账号
+                if (failures >= maxAttempts) {
+                    user.setAccountNonLocked(false);
+                    user.setLockedTime(LocalDateTime.now());
+                    
+                    // 记录账号锁定日志
+                    systemLogService.log(
+                            "ACCOUNT_LOCKED",
+                            "USER",
+                            user.getId(),
+                            null,
+                            String.format("账号被锁定，失败次数: %d", failures),
+                            true,
+                            null,
+                            request
+                    );
+                }
+                
+                userService.updateUser(user.getId(), user);
+                
+                // 记录登录失败日志
                 systemLogService.log(
-                        "ACCOUNT_LOCKED",
+                        "LOGIN_FAILED",
                         "USER",
                         user.getId(),
                         null,
-                        String.format("账号被锁定，失败次数: %d", failures),
-                        true,
-                        null,
+                        String.format("登录失败，原因: %s，失败次数: %d", exception.getMessage(), failures),
+                        false,
+                        exception.getMessage(),
                         request
                 );
             }
-            
-            userService.updateUser(user);
-            
-            // 记录登录失败日志
-            systemLogService.log(
-                    "LOGIN_FAILED",
-                    "USER",
-                    user.getId(),
-                    null,
-                    String.format("登录失败，原因: %s", exception.getMessage()),
-                    false,
-                    exception.getMessage(),
-                    request
-            );
         } catch (Exception e) {
-            // 用户不存在或其他错误，只记录日志
+            // 记录系统异常日志
             systemLogService.log(
                     "LOGIN_FAILED",
                     "USER",
                     null,
                     null,
-                    String.format("用户 %s 登录失败", username),
+                    String.format("登录失败处理异常，用户名: %s", username),
                     false,
                     e.getMessage(),
                     request
@@ -101,29 +106,43 @@ public class LoginAttemptService {
      */
     public void loginSucceeded(String username, HttpServletRequest request) {
         try {
-            User user = userService.findByUsername(username);
+            Optional<User> userOptional = userService.findByUsername(username);
             
-            // 重置登录失败次数
-            user.setLoginAttempts(0);
-            
-            // 更新最后登录时间
-            user.setLastLoginTime(LocalDateTime.now());
-            
-            userService.updateUser(user);
-            
-            // 记录登录成功日志
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                
+                // 重置登录失败次数
+                user.setLoginAttempts(0);
+                
+                // 更新最后登录时间
+                user.setLastLoginTime(LocalDateTime.now());
+                
+                userService.updateUser(user.getId(), user);
+                
+                // 记录登录成功日志
+                systemLogService.log(
+                        "LOGIN_SUCCESS",
+                        "USER",
+                        user.getId(),
+                        user,
+                        "用户登录成功",
+                        true,
+                        null,
+                        request
+                );
+            }
+        } catch (Exception e) {
+            // 记录系统异常日志
             systemLogService.log(
-                    "LOGIN_SUCCESS", 
-                    "USER", 
-                    user.getId(),
-                    user,
-                    "用户登录成功", 
-                    true, 
-                    null, 
+                    "LOGIN_SUCCESS",
+                    "USER",
+                    null,
+                    null,
+                    String.format("登录成功处理异常，用户名: %s", username),
+                    false,
+                    e.getMessage(),
                     request
             );
-        } catch (Exception ignored) {
-            // 忽略错误
         }
     }
     
@@ -135,21 +154,25 @@ public class LoginAttemptService {
      */
     public boolean isAccountLocked(String username) {
         try {
-            User user = userService.findByUsername(username);
+            Optional<User> userOptional = userService.findByUsername(username);
             
-            if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
-                // 检查锁定时间是否已过期
-                LocalDateTime unlockTime = user.getLockedTime().plusMinutes(lockDuration);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
                 
-                // 如果已过锁定时间，则解锁账号
-                if (LocalDateTime.now().isAfter(unlockTime)) {
-                    user.setAccountNonLocked(true);
-                    user.setLoginAttempts(0);
-                    user.setLockedTime(null);
-                    userService.updateUser(user);
-                    return false;
+                if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
+                    // 检查锁定时间是否已过期
+                    LocalDateTime unlockTime = user.getLockedTime().plusMinutes(lockDuration);
+                    
+                    // 如果已过锁定时间，则解锁账号
+                    if (LocalDateTime.now().isAfter(unlockTime)) {
+                        user.setAccountNonLocked(true);
+                        user.setLoginAttempts(0);
+                        user.setLockedTime(null);
+                        userService.updateUser(user.getId(), user);
+                        return false;
+                    }
+                    return true;
                 }
-                return true;
             }
             return false;
         } catch (Exception e) {
@@ -165,10 +188,14 @@ public class LoginAttemptService {
      */
     public LocalDateTime getUnlockTime(String username) {
         try {
-            User user = userService.findByUsername(username);
+            Optional<User> userOptional = userService.findByUsername(username);
             
-            if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
-                return user.getLockedTime().plusMinutes(lockDuration);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                
+                if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
+                    return user.getLockedTime().plusMinutes(lockDuration);
+                }
             }
             return null;
         } catch (Exception e) {

@@ -1,23 +1,16 @@
 package com.graduate.management.util;
 
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.ECParameterSpec;
-import org.bouncycastle.math.ec.ECCurve;
-import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.encoders.Base64;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.spec.ECGenParameterSpec;
 
 /**
  * SM2国密算法工具类
@@ -26,29 +19,16 @@ import java.security.Security;
 @Component
 public class SM2Util {
     
-    // SM2椭圆曲线参数
-    private static final BigInteger SM2_ECC_P = new BigInteger("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF", 16);
-    private static final BigInteger SM2_ECC_A = new BigInteger("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC", 16);
-    private static final BigInteger SM2_ECC_B = new BigInteger("28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93", 16);
-    private static final BigInteger SM2_ECC_N = new BigInteger("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123", 16);
-    private static final BigInteger SM2_ECC_GX = new BigInteger("32C4AE2C1F1981195F9904466A39C9948FE30BBFF2660BE1715A4589334C74C7", 16);
-    private static final BigInteger SM2_ECC_GY = new BigInteger("BC3736A2F4F6779C59BDCEE36B692153D0A9877CC62A474002DF32E52139F0A0", 16);
-    
-    private ECPublicKeyParameters publicKey;
-    private ECPrivateKeyParameters privateKey;
-    private ECDomainParameters ecDomainParameters;
+    private KeyPair keyPair;
     
     @PostConstruct
     public void init() {
-        Security.addProvider(new BouncyCastleProvider());
-        
-        // 初始化SM2曲线参数
-        ECCurve.Fp curve = new ECCurve.Fp(SM2_ECC_P, SM2_ECC_A, SM2_ECC_B);
-        ECPoint g = curve.createPoint(SM2_ECC_GX, SM2_ECC_GY);
-        ecDomainParameters = new ECDomainParameters(curve, g, SM2_ECC_N);
-        
-        // 生成公私钥对
-        generateKeyPair();
+        try {
+            Security.addProvider(new BouncyCastleProvider());
+            generateKeyPair();
+        } catch (Exception e) {
+            throw new RuntimeException("初始化SM2工具类失败", e);
+        }
     }
     
     /**
@@ -56,14 +36,10 @@ public class SM2Util {
      */
     public void generateKeyPair() {
         try {
-            SecureRandom random = new SecureRandom();
-            ECKeyGenerationParameters keyGenerationParams = new ECKeyGenerationParameters(ecDomainParameters, random);
-            ECKeyPairGenerator keyPairGenerator = new ECKeyPairGenerator();
-            keyPairGenerator.init(keyGenerationParams);
-            
-            AsymmetricCipherKeyPair keyPair = keyPairGenerator.generateKeyPair();
-            publicKey = (ECPublicKeyParameters) keyPair.getPublic();
-            privateKey = (ECPrivateKeyParameters) keyPair.getPrivate();
+            // 使用较新的API生成密钥对
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
+            keyPairGenerator.initialize(new ECGenParameterSpec("sm2p256v1"), new SecureRandom());
+            keyPair = keyPairGenerator.generateKeyPair();
         } catch (Exception e) {
             throw new RuntimeException("生成SM2密钥对失败", e);
         }

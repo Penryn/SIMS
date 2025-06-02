@@ -339,10 +339,9 @@ public class StudentProfileServiceImpl implements StudentProfileService {
     public StudentProfile findByStudentId(String studentId) {
         return studentProfileRepository.findByStudentId(studentId)
                 .orElseThrow(() -> new RuntimeException("学生不存在"));
-    }
-
-    // 将实体转换为DTO
-    private StudentProfileDto convertToDto(StudentProfile studentProfile) {
+    }    // 将实体转换为DTO
+    @Override
+    public StudentProfileDto convertToDto(StudentProfile studentProfile) {
         StudentProfileDto dto = new StudentProfileDto();
         dto.setId(studentProfile.getId());
         dto.setStudentId(studentProfile.getStudentId());

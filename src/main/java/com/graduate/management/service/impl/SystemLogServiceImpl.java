@@ -127,6 +127,26 @@ public class SystemLogServiceImpl implements SystemLogService {
         return tamperedLogs;
     }
     
+    @Override
+    public void validateAllLogs() {
+        List<SystemLog> logs = systemLogRepository.findAll();
+        List<SystemLog> invalidLogs = new ArrayList<>();
+        
+        for (SystemLog log : logs) {
+            if (!verifyLogIntegrity(log.getId())) {
+                invalidLogs.add(log);
+            }
+        }
+        
+        // 可以根据需求决定是记录无效日志，或者发送警报等
+        if (!invalidLogs.isEmpty()) {
+            // 记录警告信息
+            log("日志验证", "SystemLog", null, null, 
+                "日志完整性验证发现问题，共有" + invalidLogs.size() + "条日志可能被篡改", 
+                false, "日志完整性验证失败", null);
+        }
+    }
+
     // 将实体转换为DTO
     private SystemLogDto convertToDto(SystemLog log) {
         SystemLogDto dto = new SystemLogDto();
@@ -168,6 +188,29 @@ public class SystemLogServiceImpl implements SystemLogService {
     
     // 获取客户端IP地址
     private String getClientIpAddress(HttpServletRequest request) {
+        if (request != null) {
+            String ip = request.getHeader("X-Forwarded-For");
+            if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("Proxy-Client-IP");
+            }
+            if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("WL-Proxy-Client-IP");
+            }
+            if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("HTTP_CLIENT_IP");
+            }
+            if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+            }
+            if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getRemoteAddr();
+            }
+            return ip;
+        }
+        return "unknown";
+    }
+
+    private String getClientIp(HttpServletRequest request) {
         if (request != null) {
             String ip = request.getHeader("X-Forwarded-For");
             if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {

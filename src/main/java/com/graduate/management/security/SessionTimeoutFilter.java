@@ -54,11 +54,10 @@ public class SessionTimeoutFilter extends OncePerRequestFilter {
                     return;
                 }
             }
-            
-            // 更新最后登录时间
+              // 更新最后登录时间
             try {
                 user.setLastLoginTime(LocalDateTime.now());
-                userService.updateUser(user);
+                userService.updateUser(user.getId(), user);
             } catch (Exception e) {
                 // 忽略更新错误，不影响主流程
                 logger.warn("更新用户最后活动时间失败", e);
