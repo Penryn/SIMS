@@ -4,6 +4,7 @@ import com.graduate.management.entity.User;
 import com.graduate.management.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -21,13 +22,16 @@ import java.time.LocalDateTime;
  * 检查用户最后活动时间，超过会话超时时间则自动退出
  */
 @Component
-@RequiredArgsConstructor
 public class SessionTimeoutFilter extends OncePerRequestFilter {
     
     private final UserService userService;
     
     @Value("${system.password.session-timeout:30}")
     private int sessionTimeoutMinutes;
+    
+    public SessionTimeoutFilter(@Lazy UserService userService) {
+        this.userService = userService;
+    }
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
