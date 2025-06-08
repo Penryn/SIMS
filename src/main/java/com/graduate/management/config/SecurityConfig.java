@@ -46,10 +46,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
                 .exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-                .authorizeHttpRequests(auth -> 
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()                .authorizeHttpRequests(auth -> 
                     auth.antMatchers("/api/auth/**").permitAll()
                         .antMatchers("/api/public/**").permitAll()
+                        // Swagger相关路径
+                        .antMatchers("/swagger-ui/**").permitAll()
+                        .antMatchers("/swagger-ui.html").permitAll()
+                        .antMatchers("/swagger-resources/**").permitAll()
+                        .antMatchers("/v2/api-docs").permitAll()
+                        .antMatchers("/v3/api-docs/**").permitAll()
+                        .antMatchers("/webjars/**").permitAll()
                         .anyRequest().authenticated()
                 );
         

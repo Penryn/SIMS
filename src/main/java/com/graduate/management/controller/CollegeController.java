@@ -7,6 +7,7 @@ import com.graduate.management.security.UserDetailsImpl;
 import com.graduate.management.service.CollegeService;
 import com.graduate.management.service.MajorService;
 import com.graduate.management.service.SystemLogService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +25,7 @@ import java.util.Optional;
 /**
  * 学院和专业管理控制器
  */
+@Tag(name = "学院专业管理", description = "学院和专业管理相关接口")
 @RestController
 @RequiredArgsConstructor
 public class CollegeController {

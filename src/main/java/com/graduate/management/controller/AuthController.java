@@ -7,6 +7,9 @@ import com.graduate.management.dto.PasswordChangeRequest;
 import com.graduate.management.entity.User;
 import com.graduate.management.service.SystemLogService;
 import com.graduate.management.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,16 +18,16 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+@Tag(name = "认证管理", description = "用户认证相关接口")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
     
     private final UserService userService;
-    private final SystemLogService systemLogService;
-    
+    private final SystemLogService systemLogService;    @Operation(summary = "用户登录", description = "用户通过用户名和密码登录系统")
     @PostMapping("/login")
-    public ApiResponse<JwtResponse> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ApiResponse<JwtResponse> login(@Parameter(description = "登录请求信息", required = true) @Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
             JwtResponse response = userService.login(loginRequest);
             
@@ -41,20 +44,18 @@ public class AuthController {
             
             return ApiResponse.fail("登录失败: " + e.getMessage());
         }
-    }
-    
+    }    @Operation(summary = "刷新令牌", description = "通过刷新令牌获取新的访问令牌")
     @PostMapping("/refresh")
-    public ApiResponse<JwtResponse> refreshToken(@RequestParam String refreshToken) {
+    public ApiResponse<JwtResponse> refreshToken(@Parameter(description = "刷新令牌", required = true) @RequestParam String refreshToken) {
         try {
             JwtResponse response = userService.refreshToken(refreshToken);
             return ApiResponse.success("刷新令牌成功", response);
         } catch (Exception e) {
             return ApiResponse.fail("刷新令牌失败: " + e.getMessage());
         }
-    }
-    
+    }    @Operation(summary = "修改密码", description = "用户修改自己的密码")
     @PostMapping("/change-password")
-    public ApiResponse<?> changePassword(@Valid @RequestBody PasswordChangeRequest request, 
+    public ApiResponse<?> changePassword(@Parameter(description = "密码修改请求信息", required = true) @Valid @RequestBody PasswordChangeRequest request, 
                                         HttpServletRequest servletRequest) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -75,8 +76,7 @@ public class AuthController {
         } catch (Exception e) {
             return ApiResponse.fail("密码修改失败: " + e.getMessage());
         }
-    }
-    
+    }    @Operation(summary = "用户登出", description = "用户登出系统")
     @PostMapping("/logout")
     public ApiResponse<?> logout(HttpServletRequest request) {
         try {
@@ -92,8 +92,7 @@ public class AuthController {
         } catch (Exception e) {
             return ApiResponse.fail("登出失败: " + e.getMessage());
         }
-    }
-    
+    }    @Operation(summary = "检查密码过期", description = "检查当前用户密码是否过期")
     @GetMapping("/check-password-expiry")
     public ApiResponse<?> checkPasswordExpiry() {
         try {

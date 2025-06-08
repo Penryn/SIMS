@@ -5,6 +5,7 @@ import com.graduate.management.dto.UserDto;
 import com.graduate.management.entity.User;
 import com.graduate.management.service.SystemLogService;
 import com.graduate.management.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 
+@Tag(name = "用户管理", description = "用户管理相关接口")
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor

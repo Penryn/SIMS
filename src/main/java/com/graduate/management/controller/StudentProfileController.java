@@ -9,6 +9,7 @@ import com.graduate.management.service.StudentProfileService;
 import com.graduate.management.service.SystemLogService;
 import com.graduate.management.service.UserService;
 import com.graduate.management.util.DtoMaskUtil;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,7 @@ import java.util.List;
 /**
  * 学生学籍信息管理控制器
  */
+@Tag(name = "学生学籍管理", description = "学生学籍信息管理相关接口")
 @RestController
 @RequestMapping("/api/student-profiles")
 @RequiredArgsConstructor
