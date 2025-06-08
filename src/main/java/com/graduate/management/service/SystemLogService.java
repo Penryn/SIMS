@@ -26,8 +26,16 @@ public interface SystemLogService {
     Page<SystemLogDto> getLogsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
     
     Page<SystemLogDto> searchLogs(String keyword, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
-    
-    boolean verifyLogIntegrity(Long id);
+      boolean verifyLogIntegrity(Long id);
     
     void validateAllLogs();
+    
+    /**
+     * 计算日志的HMAC值
+     * 使用SM3算法对日志记录进行HMAC运算
+     * 
+     * @param systemLog 日志实体
+     * @return 计算得到的HMAC值
+     */
+    String calculateLogHmac(com.graduate.management.entity.SystemLog systemLog);
 }

@@ -53,12 +53,19 @@ public class StudentProfileDto {
     private LocalDate enrollmentDate;
     
     private LocalDate expectedGraduationDate;
-    
-    private String currentAddress;
+      private String currentAddress;
     
     private String permanentAddress;
     
+    private String phone;
+    
+    private String email;
+    
+    private String address;
+    
     private String emergencyContact;
+    
+    private String emergencyContactPhone;
     
     private String emergencyPhone;
     

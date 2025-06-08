@@ -85,10 +85,11 @@ public class UserDetailsImpl implements UserDetails {
     public boolean isAccountNonLocked() {
         return accountNonLocked;
     }
-    
-    @Override
+      @Override
     public boolean isCredentialsNonExpired() {
-        return true;
+        // 使用firstLogin标志来检查密码是否需要更改
+        // 当用户首次登录或密码需要更换时，返回false表示凭据已过期
+        return !firstLogin;
     }
     
     @Override

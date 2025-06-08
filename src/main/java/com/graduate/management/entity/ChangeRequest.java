@@ -19,10 +19,29 @@ public class ChangeRequest {
     @ManyToOne
     @JoinColumn(name = "student_profile_id", nullable = false)
     private StudentProfile studentProfile; // 关联的学生学籍信息
-    
-    @ManyToOne
+      @ManyToOne
     @JoinColumn(name = "requester_id", nullable = false)
     private User requester; // 发起请求的用户
+    
+    @Column(length = 200)
+    private String title; // 变更申请标题
+    
+    // 添加便捷方法
+    public void setRequestedBy(User user) {
+        this.requester = user;
+    }
+    
+    public User getRequestedBy() {
+        return this.requester;
+    }
+    
+    public String getTitle() {
+        if (this.title != null && !this.title.isEmpty()) {
+            return this.title;
+        }
+        // 如果没有设置标题，则根据字段名生成默认标题
+        return "修改" + this.fieldName + "申请";
+    }
     
     @Column(nullable = false)
     private String fieldName; // 请求修改的字段名称

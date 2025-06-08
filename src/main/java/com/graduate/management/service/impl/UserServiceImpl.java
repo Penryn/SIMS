@@ -306,13 +306,14 @@ public class UserServiceImpl implements UserService {
     public void updateLastLoginTime(String username) {
         userRepository.updateLastLoginTime(LocalDateTime.now(), username);
     }
+      private final com.graduate.management.util.DtoMaskUtil dtoMaskUtil;
     
     private UserDto convertToDto(User user) {
         List<String> roles = user.getRoles().stream()
                 .map(Role::getName)
                 .collect(Collectors.toList());
         
-        return UserDto.builder()
+        UserDto userDto = UserDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .name(user.getName())
@@ -323,5 +324,8 @@ public class UserServiceImpl implements UserService {
                 .accountNonLocked(user.getAccountNonLocked())
                 .firstLogin(user.getFirstLogin())
                 .build();
+                
+        // 对DTO进行脱敏处理
+        return dtoMaskUtil.maskUserDto(userDto);
     }
 }

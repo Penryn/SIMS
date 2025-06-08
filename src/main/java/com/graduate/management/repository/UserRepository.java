@@ -29,9 +29,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Transactional
     @Query("UPDATE User u SET u.password = ?1, u.lastPasswordChangeTime = ?2, u.firstLogin = false WHERE u.username = ?3")
     void updatePassword(String password, LocalDateTime changeTime, String username);
-    
-    @Modifying
+      @Modifying
     @Transactional
     @Query("UPDATE User u SET u.lastLoginTime = ?1 WHERE u.username = ?2")
     void updateLastLoginTime(LocalDateTime loginTime, String username);
+    
+    // 根据姓名和角色查找用户（主要用于查找导师）
+    @Query("SELECT u FROM User u JOIN u.roles r WHERE u.name = ?1 AND r.name = ?2")
+    Optional<User> findByNameAndRoles_Name(String name, String roleName);
 }

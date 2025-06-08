@@ -26,13 +26,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        try {
+            throws ServletException, IOException {        try {
             String jwt = parseJwt(request);
             if (jwt != null && jwtTokenProvider.validateToken(jwt)) {
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
                 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                
+                // 检查凭证是否过期（密码是否需要修改）
+                if (!userDetails.isCredentialsNonExpired() && !isPasswordChangeRequest(request)) {
+                    // 重定向到修改密码页面
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"PASSWORD_EXPIRED\", \"message\": \"密码已过期，请修改密码\"}");
+                    return;
+                }
+                
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -44,9 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         
         filterChain.doFilter(request, response);
-    }
-    
-    private String parseJwt(HttpServletRequest request) {
+    }    private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
         
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
@@ -54,5 +61,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         
         return null;
+    }
+      /**
+     * 检查请求是否为修改密码请求
+     * 对于修改密码的请求，即使密码过期也允许通过
+     *
+     * @param request HTTP请求
+     * @return 是否为修改密码请求
+     */
+    private boolean isPasswordChangeRequest(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+        return requestUri != null && 
+               (requestUri.endsWith("/api/auth/change-password") || 
+                requestUri.contains("/api/auth/") && request.getMethod().equals("POST"));
     }
 }

@@ -78,6 +78,10 @@ public class StudentProfile {
     
     private LocalDateTime approveTime; // 审核时间
     
+    @ManyToOne
+    @JoinColumn(name = "created_by_id")
+    private User createdBy; // 创建者
+    
     @CreationTimestamp
     private LocalDateTime createdAt; // 创建时间
     

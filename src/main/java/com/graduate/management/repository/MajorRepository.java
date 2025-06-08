@@ -15,6 +15,8 @@ public interface MajorRepository extends JpaRepository<Major, Long> {
     
     List<Major> findByCollege(College college);
     
+    Optional<Major> findByNameAndCollege(String name, College college);
+    
     boolean existsByNameAndCollege(String name, College college);
     
     boolean existsByCode(String code);

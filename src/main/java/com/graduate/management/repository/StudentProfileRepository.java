@@ -24,13 +24,27 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     
     List<StudentProfile> findBySupervisor(User supervisor);
     
+    List<StudentProfile> findByCreatedBy(User createdBy);
+    
     Page<StudentProfile> findByCollege(College college, Pageable pageable);
+    
+    Page<StudentProfile> findByMajor(Major major, Pageable pageable);
+    
+    Page<StudentProfile> findBySupervisor(User supervisor, Pageable pageable);
     
     Page<StudentProfile> findByCollegeAndApproved(College college, Boolean approved, Pageable pageable);
     
     Page<StudentProfile> findBySupervisorAndApproved(User supervisor, Boolean approved, Pageable pageable);
     
     Page<StudentProfile> findByNameContainingOrStudentIdContaining(String name, String studentId, Pageable pageable);
+    
+    @Query("SELECT sp FROM StudentProfile sp WHERE sp.supervisor = ?1 AND (sp.name LIKE %?2% OR sp.studentId LIKE %?3%)")
+    Page<StudentProfile> findBySupervisorAndNameContainingOrStudentIdContaining(
+            User supervisor, String name, String studentId, Pageable pageable);
+    
+    @Query("SELECT sp FROM StudentProfile sp WHERE sp.major = ?1 AND (sp.name LIKE %?2% OR sp.studentId LIKE %?3%)")
+    Page<StudentProfile> findByMajorAndNameContainingOrStudentIdContaining(
+            Major major, String name, String studentId, Pageable pageable);
     
     Page<StudentProfile> findByCollegeAndNameContainingOrCollegeAndStudentIdContaining(
             College college1, String name, College college2, String studentId, Pageable pageable);
@@ -48,4 +62,16 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Integer findMaxSequenceByMajorAndDegreeType(Major major, String degreeType);
     
     boolean existsByStudentId(String studentId);
+
+    /**
+     * 查找指定导师和专业下的学生，并按姓名或学号筛选
+     */
+    @Query("SELECT sp FROM StudentProfile sp WHERE sp.supervisor = ?1 AND sp.major = ?2 AND (sp.name LIKE %?3% OR sp.studentId LIKE %?4%)")
+    Page<StudentProfile> findBySupervisorAndMajorAndNameOrStudentIdContaining(
+            User supervisor, Major major, String name, String studentId, Pageable pageable);
+    
+    /**
+     * 查找指定导师和专业下的学生
+     */
+    Page<StudentProfile> findBySupervisorAndMajor(User supervisor, Major major, Pageable pageable);
 }

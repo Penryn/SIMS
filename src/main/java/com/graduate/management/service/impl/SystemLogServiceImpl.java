@@ -126,8 +126,7 @@ public class SystemLogServiceImpl implements SystemLogService {
         
         return tamperedLogs;
     }
-    
-    @Override
+      @Override
     public void validateAllLogs() {
         List<SystemLog> logs = systemLogRepository.findAll();
         List<SystemLog> invalidLogs = new ArrayList<>();
@@ -231,5 +230,11 @@ public class SystemLogServiceImpl implements SystemLogService {
             return ip;
         }
         return "unknown";
+    }
+
+    @Override
+    public String calculateLogHmac(SystemLog systemLog) {
+        String logData = buildLogData(systemLog);
+        return sm3Util.hmac(logData, hmacKey);
     }
 }

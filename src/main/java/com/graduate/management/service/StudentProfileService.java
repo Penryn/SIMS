@@ -1,6 +1,8 @@
 package com.graduate.management.service;
 
 import com.graduate.management.dto.StudentProfileDto;
+import com.graduate.management.entity.StudentProfile;
+import com.graduate.management.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,9 +47,33 @@ public interface StudentProfileService {
     
     List<StudentProfileDto> getPendingApprovals();
     
-    com.graduate.management.entity.StudentProfile findByStudentId(String studentId);
+    StudentProfile findByStudentId(String studentId);
     
-    List<com.graduate.management.entity.StudentProfile> findBySupervisor(com.graduate.management.entity.User supervisor);
+    List<StudentProfile> findBySupervisor(User supervisor);
     
-    StudentProfileDto convertToDto(com.graduate.management.entity.StudentProfile studentProfile);
+    StudentProfileDto convertToDto(StudentProfile studentProfile);
+    
+    // 批量创建学生学籍信息方法
+    List<StudentProfile> batchCreateStudentProfiles(List<StudentProfile> studentProfiles);
+    
+    // 新增方法：根据ID查找学生学籍信息
+    StudentProfile findById(Long id);
+    
+    // 新增方法：根据学生用户查找学籍信息
+    StudentProfile findByStudent(User student);
+    
+    // 新增方法：学生更新自己的学籍信息（限制字段）
+    StudentProfile updateStudentProfileByStudent(StudentProfile existingProfile, StudentProfile updatedProfile);
+    
+    // 新增方法：学院人员更新学生信息（需要审核）
+    StudentProfile updateStudentProfileWithApproval(StudentProfile profile, User updater);
+    
+    // 新增方法：直接更新学生信息（无需审核）
+    StudentProfile updateStudentProfile(StudentProfile profile);
+    
+    // 新增方法：获取学生信息（基于角色和筛选条件）
+    Page<StudentProfileDto> getStudentProfiles(User currentUser, Long collegeId, Long majorId, String keyword, Pageable pageable);
+    
+    // 新增方法：检查当前用户是否与学生属于同一学院
+    boolean isFromSameCollege(Long studentProfileId, User user);
 }

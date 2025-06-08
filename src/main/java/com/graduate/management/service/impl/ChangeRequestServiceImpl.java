@@ -84,12 +84,14 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
         }
         
         changeRequestRepository.deleteById(id);
-    }
-
-    @Override
-    public ChangeRequestDto getChangeRequestById(Long id) {
+    }    @Override
+    public ChangeRequestDto getChangeRequestById(Long id, User requester) {
         ChangeRequest changeRequest = changeRequestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("变更请求不存在"));
+        
+        // 检查权限：只有申请人、审核人或管理员可以查看
+        // 这里可以根据业务需求进行权限检查
+        
         return convertToDto(changeRequest);
     }
 
@@ -108,11 +110,9 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
     public Page<ChangeRequestDto> getPendingChangeRequests(Pageable pageable) {
         return changeRequestRepository.findByStatus("PENDING", pageable)
                 .map(this::convertToDto);
-    }
-
-    @Override
+    }    @Override
     @Transactional
-    public boolean approveChangeRequest(Long id, Long reviewerId, String comment) {
+    public ChangeRequest approveChangeRequest(Long id, User reviewer, String comment) {
         ChangeRequest changeRequest = changeRequestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("变更请求不存在"));
         
@@ -120,9 +120,6 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
         if (!"PENDING".equals(changeRequest.getStatus())) {
             throw new RuntimeException("只能审核待审核状态的变更请求");
         }
-        
-        User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("审核人不存在"));
         
         // 更新审核信息
         changeRequest.setStatus("APPROVED");
@@ -137,12 +134,12 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
         applyChange(studentProfile, changeRequest.getFieldName(), changeRequest.getNewValue());
         studentProfileRepository.save(studentProfile);
         
-        return true;
+        return changeRequest;
     }
 
     @Override
     @Transactional
-    public boolean rejectChangeRequest(Long id, Long reviewerId, String comment) {
+    public ChangeRequest rejectChangeRequest(Long id, User reviewer, String comment) {
         ChangeRequest changeRequest = changeRequestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("变更请求不存在"));
         
@@ -151,21 +148,18 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
             throw new RuntimeException("只能审核待审核状态的变更请求");
         }
         
-        User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("审核人不存在"));
-        
         // 更新审核信息
         changeRequest.setStatus("REJECTED");
         changeRequest.setReviewer(reviewer);
         changeRequest.setComment(comment);
         changeRequest.setReviewTime(LocalDateTime.now());
         
-        changeRequestRepository.save(changeRequest);
-        return true;
+        changeRequest = changeRequestRepository.save(changeRequest);
+        return changeRequest;
     }
-    
-    // 将实体转换为DTO
-    private ChangeRequestDto convertToDto(ChangeRequest changeRequest) {
+      // 将实体转换为DTO
+    @Override
+    public ChangeRequestDto convertToDto(ChangeRequest changeRequest) {
         ChangeRequestDto dto = new ChangeRequestDto();
         dto.setId(changeRequest.getId());
         dto.setStudentProfileId(changeRequest.getStudentProfile().getId());
@@ -207,10 +201,57 @@ public class ChangeRequestServiceImpl implements ChangeRequestService {
                 break;
             case "degreeType":
                 studentProfile.setDegreeType(newValue);
-                break;
-            // 可以添加更多字段的处理
+                break;            // 可以添加更多字段的处理
             default:
                 throw new RuntimeException("不支持的字段变更: " + fieldName);
         }
+    }
+    
+    // 新增方法实现
+    @Override
+    public Page<ChangeRequestDto> getAllChangeRequests(String status, Pageable pageable) {
+        if (status != null && !status.isEmpty()) {
+            return changeRequestRepository.findByStatus(status, pageable)
+                    .map(this::convertToDto);
+        } else {
+            return changeRequestRepository.findAll(pageable)
+                    .map(this::convertToDto);
+        }
+    }
+    
+    @Override
+    public Page<ChangeRequestDto> getCollegeChangeRequests(User user, String status, Pageable pageable) {
+        // 根据用户的学院权限过滤变更申请
+        // 这里需要根据实际业务逻辑实现，比如通过用户的学院ID来过滤
+        if (status != null && !status.isEmpty()) {
+            return changeRequestRepository.findByStatus(status, pageable)
+                    .map(this::convertToDto);
+        } else {
+            return changeRequestRepository.findAll(pageable)
+                    .map(this::convertToDto);
+        }
+    }
+    
+    @Override
+    @Transactional
+    public ChangeRequest cancelChangeRequest(Long id, User user) {
+        ChangeRequest changeRequest = changeRequestRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("变更请求不存在"));
+        
+        // 只能取消状态为PENDING的请求
+        if (!"PENDING".equals(changeRequest.getStatus())) {
+            throw new RuntimeException("只能取消待审核状态的变更请求");
+        }
+        
+        // 检查权限：只有申请人可以取消
+        if (!changeRequest.getRequester().getId().equals(user.getId())) {
+            throw new RuntimeException("只有申请人可以取消变更请求");
+        }
+        
+        // 更新状态为已取消
+        changeRequest.setStatus("CANCELLED");
+        changeRequest.setReviewTime(LocalDateTime.now());
+        
+        return changeRequestRepository.save(changeRequest);
     }
 }
