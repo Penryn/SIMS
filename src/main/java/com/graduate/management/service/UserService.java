@@ -3,6 +3,7 @@ package com.graduate.management.service;
 import com.graduate.management.dto.JwtResponse;
 import com.graduate.management.dto.LoginRequest;
 import com.graduate.management.dto.PasswordChangeRequest;
+import com.graduate.management.dto.RegisterRequest;
 import com.graduate.management.dto.UserDto;
 import com.graduate.management.entity.User;
 import org.springframework.data.domain.Page;
@@ -12,10 +13,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UserService {
-    
-    JwtResponse login(LoginRequest loginRequest);
+      JwtResponse login(LoginRequest loginRequest);
     
     JwtResponse refreshToken(String refreshToken);
+    
+    JwtResponse register(RegisterRequest registerRequest);
     
     User createUser(User user);
     

@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
- * 登录失败处理器
- * 实现登录失败限制次数和账号锁定功能
+ * 登录处理器
+ * 负责登录事件的日志记录
  */
 @Component
 @RequiredArgsConstructor
@@ -22,14 +22,7 @@ public class LoginAttemptService {
     
     private final UserService userService;
     private final SystemLogService systemLogService;
-    
-    @Value("${system.password.login-retry-limit:5}")
-    private int maxAttempts;
-    
-    @Value("${system.password.lock-duration:30}")
-    private int lockDuration;
-    
-    /**
+      /**
      * 处理登录失败
      *
      * @param username 用户名
@@ -47,37 +40,13 @@ public class LoginAttemptService {
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
                 
-                // 更新登录失败次数
-                int failures = user.getLoginAttempts() + 1;
-                user.setLoginAttempts(failures);
-                
-                // 如果失败次数达到上限，锁定账号
-                if (failures >= maxAttempts) {
-                    user.setAccountNonLocked(false);
-                    user.setLockedTime(LocalDateTime.now());
-                    
-                    // 记录账号锁定日志
-                    systemLogService.log(
-                            "ACCOUNT_LOCKED",
-                            "USER",
-                            user.getId(),
-                            null,
-                            String.format("账号被锁定，失败次数: %d", failures),
-                            true,
-                            null,
-                            request
-                    );
-                }
-                
-                userService.updateUser(user.getId(), user);
-                
                 // 记录登录失败日志
                 systemLogService.log(
                         "LOGIN_FAILED",
                         "USER",
                         user.getId(),
                         null,
-                        String.format("登录失败，原因: %s，失败次数: %d", exception.getMessage(), failures),
+                        String.format("登录失败，原因: %s", exception.getMessage()),
                         false,
                         exception.getMessage(),
                         request
@@ -97,8 +66,7 @@ public class LoginAttemptService {
             );
         }
     }
-    
-    /**
+      /**
      * 处理登录成功
      *
      * @param username 用户名
@@ -110,9 +78,6 @@ public class LoginAttemptService {
             
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
-                
-                // 重置登录失败次数
-                user.setLoginAttempts(0);
                 
                 // 更新最后登录时间
                 user.setLastLoginTime(LocalDateTime.now());
@@ -143,63 +108,6 @@ public class LoginAttemptService {
                     e.getMessage(),
                     request
             );
-        }
-    }
-    
-    /**
-     * 检查账号是否锁定
-     *
-     * @param username 用户名
-     * @return 如果账号锁定返回true
-     */
-    public boolean isAccountLocked(String username) {
-        try {
-            Optional<User> userOptional = userService.findByUsername(username);
-            
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                
-                if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
-                    // 检查锁定时间是否已过期
-                    LocalDateTime unlockTime = user.getLockedTime().plusMinutes(lockDuration);
-                    
-                    // 如果已过锁定时间，则解锁账号
-                    if (LocalDateTime.now().isAfter(unlockTime)) {
-                        user.setAccountNonLocked(true);
-                        user.setLoginAttempts(0);
-                        user.setLockedTime(null);
-                        userService.updateUser(user.getId(), user);
-                        return false;
-                    }
-                    return true;
-                }
-            }
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * 获取账号解锁时间
-     *
-     * @param username 用户名
-     * @return 解锁时间或null
-     */
-    public LocalDateTime getUnlockTime(String username) {
-        try {
-            Optional<User> userOptional = userService.findByUsername(username);
-            
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                
-                if (!user.getAccountNonLocked() && user.getLockedTime() != null) {
-                    return user.getLockedTime().plusMinutes(lockDuration);
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
         }
     }
 }

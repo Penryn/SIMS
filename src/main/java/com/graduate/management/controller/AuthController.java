@@ -4,6 +4,7 @@ import com.graduate.management.dto.ApiResponse;
 import com.graduate.management.dto.JwtResponse;
 import com.graduate.management.dto.LoginRequest;
 import com.graduate.management.dto.PasswordChangeRequest;
+import com.graduate.management.dto.RegisterRequest;
 import com.graduate.management.entity.User;
 import com.graduate.management.service.SystemLogService;
 import com.graduate.management.service.UserService;
@@ -41,10 +42,10 @@ public class AuthController {
             // 记录登录失败日志
             systemLogService.log("LOGIN", "USER", null, null,
                     "登录失败: " + loginRequest.getUsername(), false, e.getMessage(), request);
-            
-            return ApiResponse.fail("登录失败: " + e.getMessage());
+              return ApiResponse.fail("登录失败: " + e.getMessage());
         }
-    }    @Operation(summary = "刷新令牌", description = "通过刷新令牌获取新的访问令牌")
+    }
+  @Operation(summary = "刷新令牌", description = "通过刷新令牌获取新的访问令牌")
     @PostMapping("/refresh")
     public ApiResponse<JwtResponse> refreshToken(@Parameter(description = "刷新令牌", required = true) @RequestParam String refreshToken) {
         try {

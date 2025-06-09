@@ -3,6 +3,7 @@ package com.graduate.management.service.impl;
 import com.graduate.management.dto.JwtResponse;
 import com.graduate.management.dto.LoginRequest;
 import com.graduate.management.dto.PasswordChangeRequest;
+import com.graduate.management.dto.RegisterRequest;
 import com.graduate.management.dto.UserDto;
 import com.graduate.management.entity.Role;
 import com.graduate.management.entity.User;
@@ -10,6 +11,7 @@ import com.graduate.management.repository.RoleRepository;
 import com.graduate.management.repository.UserRepository;
 import com.graduate.management.security.JwtTokenProvider;
 import com.graduate.management.security.UserDetailsImpl;
+import com.graduate.management.service.SystemLogService;
 import com.graduate.management.service.UserService;
 import com.graduate.management.util.SM3Util;
 import lombok.RequiredArgsConstructor;
@@ -26,20 +28,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    
-    private final UserRepository userRepository;
+      private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final SM3Util sm3Util;
+    private final SystemLogService systemLogService;
     
     @Value("${system.password.expired-days}")
     private int passwordExpiredDays;
@@ -91,8 +95,7 @@ public class UserServiceImpl implements UserService {
         
         String newToken = jwtTokenProvider.generateToken(username);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(username);
-        
-        return JwtResponse.builder()
+          return JwtResponse.builder()
                 .token(newToken)
                 .refreshToken(newRefreshToken)
                 .id(user.getId())
@@ -106,6 +109,72 @@ public class UserServiceImpl implements UserService {
     
     @Override
     @Transactional
+    public JwtResponse register(RegisterRequest registerRequest) {
+        // 验证密码确认
+        if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+            throw new RuntimeException("两次输入的密码不一致");
+        }
+        
+        // 检查用户名是否已存在
+        if (userRepository.existsByUsername(registerRequest.getUsername())) {
+            throw new RuntimeException("用户名已存在");
+        }
+        
+        // 创建新用户
+        User user = new User();
+        user.setUsername(registerRequest.getUsername());
+        user.setName(registerRequest.getName());
+        user.setEmail(registerRequest.getEmail());
+        user.setPhone(registerRequest.getPhone());
+        
+        // 密码加密
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        
+        // 设置角色
+        Role role = roleRepository.findByName(registerRequest.getRole())
+                .orElseThrow(() -> new RuntimeException("角色不存在: " + registerRequest.getRole()));
+        Set<Role> roles = new HashSet<>();
+        roles.add(role);
+        user.setRoles(roles);
+        
+        // 设置初始状态
+        user.setEnabled(true);
+        user.setAccountNonLocked(true);
+        user.setFirstLogin(false); // 注册用户不需要强制修改密码
+        user.setLastPasswordChangeTime(LocalDateTime.now());
+        user.setLoginAttempts(0);
+        
+        // 保存用户
+        User savedUser = userRepository.save(user);
+        
+        // 记录注册日志
+        systemLogService.log("REGISTER", "USER", savedUser.getId(), null,
+                "用户注册: " + savedUser.getUsername() + " (" + registerRequest.getRole() + ")", 
+                true, null, null);
+        
+        // 自动登录新注册的用户
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(registerRequest.getUsername(), registerRequest.getPassword()));
+        
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtTokenProvider.generateToken(authentication);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(registerRequest.getUsername());
+        
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        
+        return JwtResponse.builder()
+                .token(jwt)
+                .refreshToken(refreshToken)
+                .id(userDetails.getId())
+                .username(userDetails.getUsername())
+                .name(userDetails.getName())
+                .firstLogin(userDetails.getFirstLogin())
+                .expireAt(LocalDateTime.now().plus(jwtExpiration, ChronoUnit.MILLIS))
+                .refreshExpireAt(LocalDateTime.now().plus(refreshExpiration, ChronoUnit.MILLIS))
+                .build();
+    }
+      @Override
+    @Transactional
     public User createUser(User user) {
         // 如果是学生，默认密码为身份证号后8位
         String defaultPassword = user.getPassword();
@@ -113,8 +182,8 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("密码不能为空");
         }
         
-        // 对密码使用SM3加密
-        user.setPassword(sm3Util.hash(defaultPassword));
+        // 使用SM3PasswordEncoder进行密码编码（包含盐值）
+        user.setPassword(passwordEncoder.encode(defaultPassword));
         
         // 设置初始登录状态
         user.setFirstLogin(true);
@@ -176,8 +245,7 @@ public class UserServiceImpl implements UserService {
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
-    
-    @Override
+      @Override
     @Transactional
     public boolean changePassword(String username, PasswordChangeRequest request) {
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
@@ -187,21 +255,20 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
-        // 验证旧密码
-        if (!sm3Util.hash(request.getOldPassword()).equals(user.getPassword())) {
+        // 验证旧密码（使用PasswordEncoder）
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new RuntimeException("旧密码不正确");
         }
         
-        // 使用SM3加密新密码
-        user.setPassword(sm3Util.hash(request.getNewPassword()));
+        // 使用SM3PasswordEncoder加密新密码
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setLastPasswordChangeTime(LocalDateTime.now());
         user.setFirstLogin(false);
         
         userRepository.save(user);
         return true;
     }
-    
-    @Override
+      @Override
     @Transactional
     public boolean resetPassword(Long userId) {
         User user = userRepository.findById(userId)
@@ -211,7 +278,7 @@ public class UserServiceImpl implements UserService {
         // 在实际应用中，应该有一个安全的方式来重置密码
         String defaultPassword = "12345678"; // 这里只是示例，实际应用需要更安全的处理
         
-        user.setPassword(sm3Util.hash(defaultPassword));
+        user.setPassword(passwordEncoder.encode(defaultPassword));
         user.setFirstLogin(true);
         user.setLastPasswordChangeTime(LocalDateTime.now());
         
